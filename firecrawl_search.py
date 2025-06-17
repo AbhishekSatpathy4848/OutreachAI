@@ -45,6 +45,18 @@ async def scrapeWebsiteWithPrompt(url, prompt):
 
     return response.json
 
+async def scrapeYoutubeAboutPage(url):
+    app = AsyncFirecrawlApp(api_key=os.getenv("FIRECRAWL_API_KEY"))
+    response = await app.scrape_url(
+        url=url,		
+        formats=['json'],
+        only_main_content=True,
+        json_options=JsonConfig(
+            schema=YoutubeData,
+        )   
+    )
+
+    return response.json
 
 
 if __name__ == "__main__":

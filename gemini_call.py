@@ -3,7 +3,7 @@ from google.generativeai import GenerativeModel, configure
 from dotenv import load_dotenv
 
 load_dotenv()
-configure(api_key=os.getenv("GEMINI_API_KEY"))
+configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 def prompt_gemini(text):
     model = GenerativeModel("gemini-2.5-flash-preview-05-20")

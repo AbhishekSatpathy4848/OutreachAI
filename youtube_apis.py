@@ -195,30 +195,38 @@ def generate_related_queries(main_query, num_queries=3):
     # Return the requested number of queries
     return queries[:num_queries]
 
-def search_for_channels():
-    print("YouTube Channel Search Tool")
-    print("-" * 45)
+def search_for_channels(query, max_channels=10, verbose=False):
+    """
+    Search for YouTube channels based on a given query string.
+    
+    Args:
+        query (str): The query string to search for channels
+        max_channels (int): Maximum number of channels to return (default: 10)
+        verbose (bool): Whether to print progress messages (default: False)
+    
+    Returns:
+        list: List of channel information dictionaries
+    """
+    if verbose:
+        print("YouTube Channel Search Tool")
+        print("-" * 45)
     
     if not YOUTUBE_API_KEY:
-        print("Error: YouTube API key not found. Please set YOUTUBE_API_KEY in your .env file.")
-        return
+        error_msg = "Error: YouTube API key not found. Please set YOUTUBE_API_KEY in your .env file."
+        if verbose:
+            print(error_msg)
+        return []
     
-    category = input("Enter the topic or category: ")
-    max_channels = input("Enter max number of channels to show (default 10): ")
-    
-    try:
-        max_channels = int(max_channels) if max_channels else 10
-    except ValueError:
-        max_channels = 10
-    
-    print(f"\nSearching for channels that create '{category}' content...")
-    print("=" * 60)
+    if verbose:
+        print(f"\nSearching for channels that create '{query}' content...")
+        print("=" * 60)
     
     all_channels = {}
     
     # Method 1: Search videos first (primary method)
-    print("🔍 Analyzing videos to find relevant channels...")
-    sorted_channels, channel_info = search_videos_for_channels(category, 50)
+    if verbose:
+        print("🔍 Analyzing videos to find relevant channels...")
+    sorted_channels, channel_info = search_videos_for_channels(query, 50)
     
     for channel_id, frequency in sorted_channels:
         if channel_id not in all_channels:
@@ -228,9 +236,11 @@ def search_for_channels():
             }
     
     # Method 2: Search related queries using Gemini
-    print("🤖 Generating related search topics...")
-    related_queries = generate_related_queries(category, 3)  # Generate 3 related queries
-    print(f"🔍 Searching related topics: {', '.join(related_queries)}...")
+    if verbose:
+        print("🤖 Generating related search topics...")
+    related_queries = generate_related_queries(query, 3)  # Generate 3 related queries
+    if verbose:
+        print(f"🔍 Searching related topics: {', '.join(related_queries)}...")
 
     for related_query in related_queries:  # Limit to avoid API quota issues
         sorted_channels, channel_info = search_videos_for_channels(related_query, 30)
@@ -244,8 +254,9 @@ def search_for_channels():
                 }
     
     # Method 3: Direct channel search as backup
-    print("🔍 Adding channels with relevant names...")
-    direct_channels = search_channels_directly(category, 15)
+    if verbose:
+        print("🔍 Adding channels with relevant names...")
+    direct_channels = search_channels_directly(query, 15)
     for channel_id, _ in direct_channels:
         if channel_id not in all_channels:
             all_channels[channel_id] = {'frequency': 1, 'sample_videos': []}
@@ -254,7 +265,8 @@ def search_for_channels():
     final_channels = sorted(all_channels.items(), key=lambda x: x[1]['frequency'], reverse=True)
     
     if not final_channels:
-        print("No relevant channels found.")
+        if verbose:
+            print("No relevant channels found.")
         return []
 
     results = []
@@ -277,5 +289,14 @@ def search_for_channels():
     return results
 
 if __name__ == "__main__":
-    channels = search_for_channels()
+    # Example usage for testing
+    query = input("Enter the topic or category: ")
+    max_channels = input("Enter max number of channels to show (default 10): ")
+    
+    try:
+        max_channels = int(max_channels) if max_channels else 10
+    except ValueError:
+        max_channels = 10
+    
+    channels = search_for_channels(query, max_channels, verbose=True)
     print(json.dumps(channels, indent=2, ensure_ascii=False))
