@@ -27,14 +27,70 @@ logger = logging.getLogger(__name__)
 
 # OAuth 2.0 scopes
 SCOPES = [
+    'https://www.googleapis.com/auth/gmail.readonly',
     'https://www.googleapis.com/auth/calendar',
-    'https://www.googleapis.com/auth/calendar.events'
+    'https://www.googleapis.com/auth/calendar.events',
+    'https://www.googleapis.com/auth/gmail.send'
 ]
+
+def _get_google_service(service_name: str, version: str, access_token: str, 
+                       refresh_token: str = None, client_id: str = None, 
+                       client_secret: str = None, scopes: List[str] = None):
+    """
+    Generic function to get authenticated Google service from tokens
+    
+    Args:
+        service_name: Name of the Google service (e.g., 'calendar', 'gmail', 'drive', 'sheets')
+        version: API version (e.g., 'v3', 'v1')
+        access_token: OAuth2 access token from client
+        refresh_token: OAuth2 refresh token (optional)
+        client_id: OAuth2 client ID (needed for token refresh)
+        client_secret: OAuth2 client secret (needed for token refresh)
+        scopes: List of OAuth2 scopes (optional, defaults to SCOPES)
+        
+    Returns:
+        Google service object
+    """
+    try:
+        # Use provided scopes or default SCOPES
+        if scopes is None:
+            scopes = SCOPES
+            
+        # Create credentials from token
+        token_info = {
+            'token': access_token,
+            'scopes': scopes
+        }
+        
+        if refresh_token:
+            token_info['refresh_token'] = refresh_token
+        if client_id:
+            token_info['client_id'] = client_id
+        if client_secret:
+            token_info['client_secret'] = client_secret
+            
+        creds = Credentials(token=access_token, 
+                            refresh_token=refresh_token,
+                            client_id=client_id,
+                            client_secret=client_secret,
+                            token_uri='https://oauth2.googleapis.com/token')
+        
+        # Refresh token if expired and refresh token is available
+        if not creds.valid and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        
+        service = build(service_name, version, credentials=creds)
+        logger.info(f"Successfully authenticated with Google {service_name.capitalize()} API")
+        return service
+        
+    except Exception as e:
+        logger.error(f"Failed to authenticate with {service_name}: {e}")
+        raise Exception(f"Authentication failed for {service_name}: {str(e)}")
 
 def _get_calendar_service_from_token(access_token: str, refresh_token: str = None, 
                                     client_id: str = None, client_secret: str = None):
     """
-    Internal function to get authenticated Google Calendar service from tokens
+    Get authenticated Google Calendar service from tokens (backward compatibility)
     
     Args:
         access_token: OAuth2 access token from client
@@ -45,33 +101,24 @@ def _get_calendar_service_from_token(access_token: str, refresh_token: str = Non
     Returns:
         Google Calendar service object
     """
-    try:
-        # Create credentials from token
-        token_info = {
-            'token': access_token,
-            'scopes': SCOPES
-        }
-        
-        if refresh_token:
-            token_info['refresh_token'] = refresh_token
-        if client_id:
-            token_info['client_id'] = client_id
-        if client_secret:
-            token_info['client_secret'] = client_secret
-            
-        creds = Credentials.from_authorized_user_info(token_info, SCOPES)
-        
-        # Refresh token if expired and refresh token is available
-        if not creds.valid and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        
-        service = build('calendar', 'v3', credentials=creds)
-        logger.info("Successfully authenticated with Google Calendar API")
-        return service
-        
-    except Exception as e:
-        logger.error(f"Failed to authenticate: {e}")
-        raise Exception(f"Authentication failed: {str(e)}")
+    return _get_google_service('calendar', 'v3', access_token, refresh_token, 
+                             client_id, client_secret)
+
+def _get_gmail_service_from_token(access_token: str, refresh_token: str = None,
+                                  client_id: str = None, client_secret: str = None):
+    """
+    Get authenticated Gmail service from tokens (backward compatibility)
+    Args:
+        access_token: OAuth2 access token from client
+        refresh_token: OAuth2 refresh token (optional)
+        client_id: OAuth2 client ID (needed for token refresh)
+        client_secret: OAuth2 client secret (needed for token refresh)
+    Returns:
+        Google Gmail service object
+    """
+    return _get_google_service('gmail', 'v1', access_token, refresh_token,
+                             client_id, client_secret)
+    
 
 def create_google_meet_meeting(
     access_token: str,
@@ -605,53 +652,120 @@ def search_meetings(
         logger.error(f"Error searching meetings: {e}")
         return []
     
-def send_email_with_token(access_token, sender_email, to_email, subject, body_text):
-    # Wrap the access token in google-auth Credentials
-    creds = Credentials(token=access_token)
-    service = build('gmail', 'v1', credentials=creds)
-
-    # Create email
-    message = MIMEText(body_text)
-    message['to'] = to_email
-    message['from'] = sender_email
-    message['subject'] = subject
-    raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+def send_email_with_token(access_token: str, to_email: str, 
+                         subject: str, body_text: str, refresh_token: str,
+                         client_id: str, client_secret: str):
+    """
+    Send an email using Gmail API with OAuth token
     
+    Args:
+        access_token: OAuth2 access token from client
+        to_email: Recipient's email address
+        subject: Email subject
+        body_text: Email body (plain text)
+        refresh_token: OAuth2 refresh token (optional)
+        client_id: OAuth2 client ID (optional)
+        client_secret: OAuth2 client secret (optional)
+        
+    Returns:
+        Dictionary with email sending result
+    """
     try:
-        result = service.users().messages().send(userId="me", body={'raw': raw_message}).execute()
-        print(f"✅ Email sent. Message ID: {result['id']}")
-        return result
+        # Get Gmail service using the generic function
+        service = _get_gmail_service_from_token(access_token=access_token, 
+                                   refresh_token=refresh_token, client_id=client_id,
+                                   client_secret=client_secret)
+
+        # Create email message
+        message = MIMEText(body_text)
+        message['to'] = 'abhisheksatpathy4848@gmail.com'
+        message['subject'] = subject
+        
+        # Encode message
+        raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+        
+        # Send email
+        result = service.users().messages().send(
+            userId="me", 
+            body={'raw': raw_message}
+        ).execute()
+        
+        logger.info(f"✅ Email sent successfully. Message ID: {result['id']}")
+        return {
+            'status': 'sent',
+            'message_id': result['id'],
+            'to': to_email,
+            'subject': subject,
+            'message': 'Email sent successfully'
+        }
+        
+    except HttpError as error:
+        logger.error(f"Gmail API error: {error}")
+        return {
+            'status': 'error',
+            'error': str(error),
+            'message': 'Failed to send email via Gmail API'
+        }
     except Exception as e:
-        print(f"❌ Failed to send email: {e}")
-        return None
+        logger.error(f"❌ Failed to send email: {e}")
+        return {
+            'status': 'error',
+            'error': str(e),
+            'message': 'Failed to send email'
+        }
 
 
 # Example usage for testing
 if __name__ == "__main__":
-    # Example with access token (you would get this from your client-side auth)
-    access_token = "your_access_token_here"
-    
-    # Example: Create a meeting for tomorrow at 2 PM
-    tomorrow = datetime.now() + timedelta(days=1)
-    start_time = tomorrow.replace(hour=14, minute=0, second=0, microsecond=0)
-    
-    result = create_google_meet_meeting(
+    access_token = ""
+    refresh_token = ""
+    client_id = ""
+    client_secret = ""
+
+    result = send_email_with_token(
         access_token=access_token,
-        title="Team Standup Meeting",
-        start_time=start_time.isoformat(),
-        duration_minutes=30,
-        description="Daily team standup to discuss progress and blockers",
-        attendees=["team@example.com"],
-        timezone="UTC"
-    )
+        refresh_token=refresh_token,
+        client_id=client_id,
+        client_secret=client_secret,
+        to_email="recipient@example.com",
+        subject="Test Email",
+        body_text="This is a test email.",
+        )
+
+    #create a google meet
+    # create_google_meet_meeting(
+    #     access_token=access_token,
+    #     refresh_token=refresh_token,
+    #     client_id=client_id,
+    #     client_secret=client_secret,
+    #     title="Test Meeting",
+    #     start_time=(datetime.now() + timedelta(days=1)).isoformat(),
+    #     duration_minutes=30,
+    #     description="This is a test meeting created via API.",
+    #     attendees=["abhisheksatpathy4848@gmail.com"]
+    # )
+
+    # # Example: Create a meeting for tomorrow at 2 PM
+    # tomorrow = datetime.now() + timedelta(days=1)
+    # start_time = tomorrow.replace(hour=14, minute=0, second=0, microsecond=0)
     
-    print("Meeting Creation Result:")
-    print(json.dumps(result, indent=2))
+    # result = create_google_meet_meeting(
+    #     access_token=access_token,
+    #     title="Team Standup Meeting",
+    #     start_time=start_time.isoformat(),
+    #     duration_minutes=30,
+    #     description="Daily team standup to discuss progress and blockers",
+    #     attendees=["team@example.com"],
+    #     timezone="UTC"
+    # )
     
-    # Get upcoming meetings
-    print("\nUpcoming Meetings:")
-    meetings = get_upcoming_meetings(access_token, max_results=5)
-    for meeting in meetings:
-        print(f"- {meeting['title']} at {meeting['start_time']}")
-        if meeting['meet_link']:
-            print(f"  Meet Link: {meeting['meet_link']}")
+    # print("Meeting Creation Result:")
+    # print(json.dumps(result, indent=2))
+    
+    # # Get upcoming meetings
+    # print("\nUpcoming Meetings:")
+    # meetings = get_upcoming_meetings(access_token, max_results=5)
+    # for meeting in meetings:
+    #     print(f"- {meeting['title']} at {meeting['start_time']}")
+    #     if meeting['meet_link']:
+    #         print(f"  Meet Link: {meeting['meet_link']}")

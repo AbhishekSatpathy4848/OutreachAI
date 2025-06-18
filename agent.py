@@ -1,17 +1,4 @@
-FUNCTION_DEFINITIONS = {
-    "searching_users": [
-        {
-            "name": "scrapeWebsiteWithSchema",
-            "description": "Scrapes the given website URL using Firecrawl and extracts structured data based on a provided schema.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "url": { "type": "string", "description": "The URL of the website to scrape." },
-                    "schema": { "type": "object", "description": "A Pydantic schema (BaseModel) defining the expected structure of the extracted data." }
-                },
-                "required": ["url", "schema"]
-            }
-        },
+FUNCTION_DEFINITIONS = [
         {
             "name": "scrapeWebsiteWithPrompt",
             "description": "Scrapes the given website URL using Firecrawl and extracts data guided by a custom prompt.",
@@ -49,7 +36,7 @@ FUNCTION_DEFINITIONS = {
         },
         {
             "name": "search_for_channels",
-            "description": "Searches for channels based on a query string.",
+            "description": "Searches for channels on YouTube based on a query string.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -58,28 +45,53 @@ FUNCTION_DEFINITIONS = {
                 },
                 "required": ["query"]
             }
-        }
-    ],
-
-    "communication": [
+        },
         {
             "name": "send_email_with_token",
-            "description": "Sends an email using an OAuth access token.",
+            "description": "Sends an email using the Gmail API and an OAuth2 access token. Optionally refreshes the token if refresh credentials are provided.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "access_token": { "type": "string", "description": "OAuth access token to authenticate the email request." },
-                    "sender_email": { "type": "string", "description": "The sender's email address." },
-                    "to_email": { "type": "string", "description": "The recipient's email address." },
-                    "subject": { "type": "string", "description": "Subject of the email." },
-                    "body_text": { "type": "string", "description": "Plain text body of the email." }
+                "access_token": {
+                    "type": "string",
+                    "description": "OAuth2 access token from client."
                 },
-                "required": ["access_token", "sender_email", "to_email", "subject", "body_text"]
+                "to_email": {
+                    "type": "string",
+                    "description": "Recipient's email address."
+                },
+                "subject": {
+                    "type": "string",
+                    "description": "Email subject."
+                },
+                "body_text": {
+                    "type": "string",
+                    "description": "Email body (plain text)."
+                },
+                "refresh_token": {
+                    "type": "string",
+                    "description": "OAuth2 refresh token (optional).",
+                },
+                "client_id": {
+                    "type": "string",
+                    "description": "OAuth2 client ID (optional).",
+                },
+                "client_secret": {
+                    "type": "string",
+                    "description": "OAuth2 client secret (optional).",
+                }
+                },
+                "required": [
+                "access_token",
+                "to_email",
+                "subject",
+                "body_text",
+                "refresh_token",
+                "client_id",
+                "client_secret"
+                ]
             }
-        }
-    ],
-
-    "meet": [
+            },
         {
             "name": "create_google_meet_meeting",
             "description": "Creates a Google Meet meeting and returns the meeting details.",
@@ -101,232 +113,774 @@ FUNCTION_DEFINITIONS = {
             }
         },
         {
-            "name": "get_upcoming_meetings",
-            "description": "Fetches upcoming meetings from the user's calendar.",
+            "name": "display_message",
+            "description": "Displays a message to the user in the console.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "access_token": { "type": "string", "description": "OAuth access token." },
-                    "max_results": { "type": "integer", "description": "Maximum number of meetings to return.", "default": 10 },
-                    "refresh_token": { "type": "string", "description": "Optional refresh token." },
-                    "client_id": { "type": "string", "description": "Optional client ID." },
-                    "client_secret": { "type": "string", "description": "Optional client secret." }
+                    "message": { "type": "string", "description": "The message to display to the user." }
                 },
-                "required": ["access_token"]
+                "required": ["message"]
             }
         },
         {
-            "name": "cancel_meeting",
-            "description": "Cancels a scheduled meeting.",
+            "name": "ask_user_clarification",
+            "description": "Asks the user for clarification on a specific topic.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "access_token": { "type": "string", "description": "OAuth access token." },
-                    "event_id": { "type": "string", "description": "The ID of the meeting event to cancel." },
-                    "refresh_token": { "type": "string", "description": "Optional refresh token." },
-                    "client_id": { "type": "string", "description": "Optional client ID." },
-                    "client_secret": { "type": "string", "description": "Optional client secret." }
+                    "questions": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "description": "List of questions to ask the user for clarification."
+                    }
                 },
-                "required": ["access_token", "event_id"]
+                "required": ["questions"]
             }
         },
         {
-            "name": "update_meeting",
-            "description": "Updates the details of an existing meeting.",
+            "name": "score_candidates",
+            "description": "Scores and ranks a list of candidates based on user preferences and query relevance using AI analysis.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "access_token": { "type": "string", "description": "OAuth access token." },
-                    "event_id": { "type": "string", "description": "The ID of the meeting event to update." },
-                    "title": { "type": "string", "description": "New title of the meeting." },
-                    "start_time": { "type": "string", "description": "New start time in ISO 8601 format." },
-                    "duration_minutes": { "type": "integer", "description": "Updated duration in minutes." },
-                    "description": { "type": "string", "description": "Updated description." },
-                    "attendees": { "type": "array", "items": { "type": "string" }, "description": "Updated attendee list." },
-                    "timezone": { "type": "string", "description": "Updated timezone.", "default": "UTC" },
-                    "refresh_token": { "type": "string", "description": "Optional refresh token." },
-                    "client_id": { "type": "string", "description": "Optional client ID." },
-                    "client_secret": { "type": "string", "description": "Optional client secret." }
+                    "candidates": {
+                        "type": "array",
+                        "description": "List of candidate objects to score."
+                    },
+                    "user_query": {
+                        "type": "string",
+                        "description": "The original user query describing what they're looking for."
+                    },
+                    "user_preferences": {
+                        "type": "object",
+                        "description": "User preferences including budget, location, experience level, etc."
+                    }
                 },
-                "required": ["access_token", "event_id"]
+                "required": ["candidates", "user_query"]
             }
         },
         {
-            "name": "get_meeting_details",
-            "description": "Gets the details of a specific meeting.",
+            "name": "prepare_outreach",
+            "description": "Prepares personalized outreach messages for scored candidates using AI to generate compelling, customized emails.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "access_token": { "type": "string", "description": "OAuth access token." },
-                    "event_id": { "type": "string", "description": "The ID of the meeting event." },
-                    "refresh_token": { "type": "string", "description": "Optional refresh token." },
-                    "client_id": { "type": "string", "description": "Optional client ID." },
-                    "client_secret": { "type": "string", "description": "Optional client secret." }
+                    "candidates": {
+                        "type": "array",
+                        "description": "List of scored candidate objects to prepare outreach for."
+                    },
+                    "user_query": {
+                        "type": "string",
+                        "description": "The original user query describing what they're looking for."
+                    },
+                    "user_preferences": {
+                        "type": "object",
+                        "description": "User preferences including budget, company info, etc."
+                    },
+                    "sender_info": {
+                        "type": "object",
+                        "description": "Sender information including name, company, email, etc."
+                    }
                 },
-                "required": ["access_token", "event_id"]
+                "required": ["candidates", "user_query"]
             }
         },
         {
-            "name": "search_meetings",
-            "description": "Searches for meetings that match the given query and time range.",
+            "name": "fetch_credentials",
+            "description": "Fetches OAuth credentials from a file.",
             "parameters": {
                 "type": "object",
-                "properties": {
-                    "access_token": { "type": "string", "description": "OAuth access token." },
-                    "query": { "type": "string", "description": "Text query to search for meetings." },
-                    "max_results": { "type": "integer", "description": "Maximum number of results to return.", "default": 10 },
-                    "time_min": { "type": "string", "description": "ISO 8601 minimum time for filtering." },
-                    "time_max": { "type": "string", "description": "ISO 8601 maximum time for filtering." },
-                    "refresh_token": { "type": "string", "description": "Optional refresh token." },
-                    "client_id": { "type": "string", "description": "Optional client ID." },
-                    "client_secret": { "type": "string", "description": "Optional client secret." }
-                },
-                "required": ["access_token", "query"]
+                "properties": {},
+                "required": []
             }
         }
     ]
-}
+
+
+INITIAL_PROMPT = f'''
+You are a highly autonomous outreach agent. Your primary goal is to find and connect with the right people for various purposes (e.g., podcast guests, influencers, co-founders) with minimal user intervention. You will automate the entire process from search to outreach.
+
+Here are the functions you can use: {FUNCTION_DEFINITIONS}
+
+You must always reply in a JSON format with the following structure:
+{{
+    "thought": "Your thought process on what to do next. Be concise.",
+    "function_calls": {{
+        "name": "function_name",
+        "inputs": {{
+            "param1": "value1",
+            "param2": "value2"
+        }}
+}}
+}}
+
+**Guiding Principles for Autonomy:**
+1.  **Act Independently:** Your main objective is to achieve the user's goal without asking for help.
+2.  **Assume and Proceed:** Based on the initial query, make logical assumptions about user preferences (e.g., budget, location, experience level) to avoid unnecessary questions. If the user provides specific preferences, use them. Otherwise, proceed with your best judgment.
+3.  **Clarify Only When Blocked:** Only use the `ask_user_clarification` function as a last resort when you are completely blocked and cannot proceed with the task.
+4.  **Proactive Execution:** Use all available tools to gather a comprehensive list of candidates. Score them, prepare outreach messages, and present the results.
+5.  **Inform, Don't Ask:** Keep the user informed of your progress by using the `display_message` function. Show your findings and actions, but do not ask for confirmation at every step.
+
+If there is no function call, return an empty dict for "function_calls".
+Your goal is maximum automation and minimal human intervention.
+
+ALWAYS REPLY IN A JSON FORMAT AS DESCRIBED ABOVE, EVEN IF THERE IS AN ERROR OR ANYTHING
+'''
 
 import asyncio
 import json
+import json
+import asyncio
+from datetime import datetime
 
 from gemini_call import prompt_gemini
 from google_search_api import google_search
-from google_services import create_google_meet_meeting
+from google_services import create_google_meet_meeting, send_email_with_token
 from youtube_apis import search_for_channels
+from firecrawl_search import scrapeWebsiteWithPrompt, scrapeYoutubeAboutPage
+
+def to_json(json_string):
+    try:
+        first_curly_index = json_string.find("{")
+        last_curly_index = json_string.rfind("}")
+        result = json_string[first_curly_index:last_curly_index+1]
+        json_string = json.loads(result)
+        return json_string
+    except:
+        print("Error parsing JSON!!")
 
 
-# States
-UNDERSTAND_QUERY = "understand_query"
-SEARCH_FOR_PEOPLE = "search_for_people"
-REVIEW_CANDIDATES = "review_candidates"
-PREPARE_OUTREACH = "prepare_outreach"
-SEND_OUTREACH = "send_outreach"
-SCHEDULE_MEETINGS = "schedule_meetings"
+# # Global handlers for display and input - can be overridden for web interface
+# _display_handler = None
+# _input_handler = None
+# _pending_inputs = {}
+
+# def set_display_handler(handler):
+#     """Set custom display handler for web interface"""
+#     global _display_handler
+#     _display_handler = handler
+
+# def set_input_handler(handler):
+#     """Set custom input handler for web interface"""
+#     global _input_handler
+#     _input_handler = handler
+
+# Global handlers for display and input - can be overridden for web interface
+_display_handler = None
+_input_handler = None
+
+def set_display_handler(handler):
+    """Set custom display handler for web interface"""
+    global _display_handler
+    _display_handler = handler
+
+def set_input_handler(handler):
+    """Set custom input handler for web interface"""
+    global _input_handler
+    _input_handler = handler
+
+def display_message(message):
+    """Displays a message to the user"""
+    if _display_handler:
+        _display_handler(message)
+    else:
+        print(f"💬 {message}")
+    return message
+
+def get_user_input(prompt):
+    """Gets input from the user"""
+    return input(f"{prompt} ").strip()
+
+def ask_user_clarification(questions, session_id=None):
+    """Asks the user for clarification on a specific topic."""
+    if _input_handler and session_id:
+        question_text = "❓ I need some clarification to continue:\n"
+        for i, question in enumerate(questions, 1):
+            question_text += f"{i}. {question}\n"
+        question_text += "\nPlease provide your response below."
+        return _input_handler(question_text, session_id)
+    else:
+        print("❓ Please clarify:")
+        for i, question in enumerate(questions, 1):
+            print(f"{i}. {question}")
+        user_response = input("Enter your response: ").strip()
+        return user_response
+
+def fetch_credentials():
+    # TODO: Implement a secure way to fetch credentials
+    try:
+        f = open ("creds.txt", "r")
+        lines = f.readlines()
+        f.close()
+        return lines
+    except FileNotFoundError:
+        return ["No credentials file found"]
+
+def get_user_details():
+    """Fetches user details from a file or database."""
+
+    # TODO: Complete this function to fetch user details
 
 class AutonomousOutreachAgent:
-    def __init__(self):
-        self.conversation_history = []
-        self.state = UNDERSTAND_QUERY
-        self.memory = {}
+    def __init__(self, session_id=None):
+        self.session_id = session_id
+        self.streaming_agent = None  # Will be set by Flask app
+        self.state = {
+            "raw_user_query": "",
+            "search_criteria": {},
+            "budget_left": None,
+            "candidates": [],
+            "scored_candidates": [],
+            "outreach_messages": {},
+            "scheduled_meetings": [],
+            "user_preferences": {},
+            "errors": [],
+            "conversation_history": [],
+        }
 
-    async def run(self):
-        while True:
-            # Compose LLM query
-            llm_prompt = {
-                "history": self.conversation_history,
-                "current_state": self.state,
-                "function_definitions": FUNCTION_DEFINITIONS,
-                "goal": "Find the right people, contact them, and schedule meetings. Always ask user if you are unsure."
+        self.state["conversation_history"] = [
+            {
+                "role": "system",
+                "content": INITIAL_PROMPT
             }
-            llm_prompt_text = json.dumps(llm_prompt, indent=2)
-            
-            llm_response_text = prompt_gemini(llm_prompt_text)
-            print(f"🤖 LLM Response:\n{llm_response_text}\n")
-            try:
-                llm_response = json.loads(llm_response_text)
-            except json.JSONDecodeError:
-                print("⚠️ LLM response was not valid JSON. Please try again.")
-                continue
+        ]
+    
+    def set_streaming_agent(self, streaming_agent):
+        """Set the streaming agent for web interface"""
+        self.streaming_agent = streaming_agent
+        
+    def save_state(self, filename=None):
+        """Save current state to file"""
+        if filename is None:
+            filename = f"agent_state_{self.session_id}.json" if self.session_id else "agent_state.json"
+        with open(filename, 'w') as f:
+            json.dump(self.state, f, indent=2)
+    
+    def load_state(self, filename=None):
+        """Load state from file"""
+        if filename is None:
+            filename = f"agent_state_{self.session_id}.json" if self.session_id else "agent_state.json"
+        try:
+            with open(filename, 'r') as f:
+                self.state = json.load(f)
+        except FileNotFoundError:
+            print(f"No previous state found for session {self.session_id}, starting fresh.")
+    
+    async def execute_function(self, function_name, inputs):
+        """Execute a function call and return the result"""
+        try:
+            if function_name == "ask_user_clarification":
+                # For streaming interface, we need to wait for user input
+                questions = inputs.get("questions", [])
+                if self.streaming_agent:
+                    # We're in a streaming context - trigger the input request
+                    result = ask_user_clarification(questions, self.session_id)
+                    # The streaming agent will handle the waiting state
+                    return result
+                else:
+                    # Non-streaming context - use regular input
+                    return ask_user_clarification(questions)
+            elif function_name == "display_message":
+                display_message(inputs["message"])
+                return "Message displayed"
+            elif function_name == "google_search":
+                return google_search(inputs["query"], inputs.get("num_results", 5))
+            elif function_name == "search_for_channels":
+                return search_for_channels(inputs["query"], inputs.get("max_channels", 10))
+            elif function_name == "scrapeWebsiteWithPrompt":
+                return await scrapeWebsiteWithPrompt(inputs["url"], inputs["prompt"])
+            elif function_name == "scrapeYoutubeAboutPage":
+                return await scrapeYoutubeAboutPage(inputs["url"])
+            elif function_name == "send_email_with_token":
+                return send_email_with_token(**inputs)
+            elif function_name == "create_google_meet_meeting":
+                return create_google_meet_meeting(**inputs)
+            elif function_name == "score_candidates":
+                return await self.score_candidates_with_llm(
+                    inputs["candidates"], 
+                    inputs["user_query"], 
+                    inputs.get("user_preferences", {})
+                )
+            elif function_name == "prepare_outreach":
+                return await self.prepare_outreach_with_llm(
+                    inputs["candidates"],
+                    inputs["user_query"],
+                    inputs.get("user_preferences", {}),
+                    inputs.get("sender_info", {})
+                )
+            elif function_name == "fetch_credentials":
+                return fetch_credentials()
+            else:
+                return f"Unknown function: {function_name}"
+        except Exception as e:
+            error_details = f"Error executing {function_name}: {str(e)}"
+            self.state["errors"].append(error_details)
+            self.save_state()
+            return error_details
+    
+    async def get_ai_response(self, user_input=""):
+        """Get AI response and execute any function calls"""
 
-            self.conversation_history.append({
-                "agent_state": self.state,
-                "llm_response": llm_response
+        if user_input != None and len(user_input) > 0: 
+            self.state["conversation_history"].append({
+                "role": "user",
+                "content": user_input
+            })
+            if not self.state.get("raw_user_query"):
+                self.update_state("raw_user_query", user_input)
+
+        context = f"""
+        Context:
+        Conversation history: {json.dumps(self.state["conversation_history"], indent=2)} \n
+
+        """
+        # Current state: {json.dumps(self.state, indent=2)} \n
+
+
+        # if user_input:
+        #     context += f"User input: {user_input}\n"
+
+        try:
+            response = prompt_gemini(context)
+            parsed_response = to_json(response)
+
+            self.state["conversation_history"].append({
+                "role": "assistant",
+                "content": parsed_response
             })
 
-            # Handle LLM guidance
-            if "user_prompt" in llm_response:
-                user_input = input(f"🤖 {llm_response['user_prompt']} ")
-                self.conversation_history.append({"user_input": user_input})
-                self.memory["last_user_input"] = user_input
+            if not parsed_response:
+                return "Error: Could not parse AI response"
+            
+            # Store the thought
+            thought = parsed_response.get("thought", "")
+            
+            # Execute function calls if any
+            function_calls = parsed_response.get("function_calls", {})
+            function_result = None
+            
+            if function_calls and function_calls.get("name"):
 
-            if "function_to_call" in llm_response:
-                func_name = llm_response["function_to_call"]
-                func_inputs = llm_response.get("function_inputs", {})
-                result = await self.invoke_function(func_name, func_inputs)
-                self.memory["last_function_result"] = result
-                self.conversation_history.append({
-                    "function_call": func_name,
-                    "function_inputs": func_inputs,
-                    "function_result": result
+                # print("Thought:", thought)
+                # print(f"Executing function: {function_calls['name']} with inputs: {function_calls.get('inputs', {})}")
+                # print()
+                function_result = await self.execute_function(
+                    function_calls["name"], 
+                    function_calls.get("inputs", {})
+                )
+
+
+                # Update state based on function call
+                if function_calls["name"] in ["google_search", "search_for_channels"]:
+                    # Assuming these return a list of candidates
+                    if isinstance(function_result, list):
+                        self.state["candidates"].extend(function_result)
+                elif function_calls["name"] == "score_candidates":
+                    if isinstance(function_result, dict) and "scored_candidates" in function_result:
+                        self.state["scored_candidates"] = function_result["scored_candidates"]
+                elif function_calls["name"] == "prepare_outreach":
+                     if isinstance(function_result, dict) and "outreach_messages" in function_result:
+                        self.state["outreach_messages"] = function_result["outreach_messages"]
+
+                self.save_state() # Save state after every function call
+
+                self.state["conversation_history"].append({
+                    "role": "user",
+                    "content": f"Executed function: {function_calls['name']} and received result: {function_result}"
                 })
+            
+            return {
+                "thought": thought,
+                "function_result": function_result,
+                "function_calls": function_calls
+            }
+            
+        except Exception as e:
+            return f"Error getting AI response: {str(e)}"
+    
+    def update_state(self, key, value):
+        """Update a specific state key"""
+        self.state[key] = value
+        self.save_state()
+    
+    
+    async def score_candidates_with_llm(self, candidates, user_query, user_preferences=None):
+        """
+        Score and rank candidates using LLM-based analysis.
+        
+        Args:
+            candidates: List of candidate objects
+            user_query: The original user query describing what they're looking for
+            user_preferences: Dict containing user preferences (budget, location, etc.)
+        
+        Returns:
+            List of scored and ranked candidates
+        """
+        if not candidates:
+            return []
+        
+        if user_preferences is None:
+            user_preferences = self.state.get("user_preferences", {})
+            
+        display_message(f"📊 Scoring {len(candidates)} candidates using AI analysis...")
+        
+        # Prepare the scoring prompt for the LLM
+        scoring_prompt = f"""
+        You are an expert recruiter and talent evaluator. Please analyze and score the following candidates based on the user's requirements.
 
+        USER QUERY: {user_query}
+        
+        USER PREFERENCES:
+        {json.dumps(user_preferences, indent=2)}
+        
+        CANDIDATES TO SCORE:
+        {json.dumps(candidates, indent=2)}
+        
+        Please analyze each candidate and provide:
+        1. A relevance score from 0-100 (100 being perfect match)
+        2. Key strengths that match the requirements
+        3. Potential concerns or gaps
+        4. A brief reasoning for the score
+        
+        Consider the following factors:
+        - Relevance to the user's query and requirements
+        - Experience level and expertise
+        - Audience size and engagement (if applicable)
+        - Location preferences (if specified)
+        - Budget constraints and typical rates
+        - Overall fit for the intended purpose
+        
+        Return your response as a JSON object with this structure:
+        {{
+            "scored_candidates": [
+                {{
+                    "candidate_index": 0,
+                    "score": 85,
+                    "strengths": ["Strong expertise in X", "Large engaged audience"],
+                    "concerns": ["May be above budget", "Location mismatch"],
+                    "reasoning": "Brief explanation of the score"
+                }},
+                ...
+            ],
+            "ranking_summary": "Brief summary of the overall ranking rationale"
+        }}
+        """
+        
+        try:
+            # Get LLM response
+            llm_response = prompt_gemini(scoring_prompt)
+            
+            # Parse the LLM response
+            scoring_result = to_json(llm_response)
+            
+            if not scoring_result or "scored_candidates" not in scoring_result:
+                # Fallback to basic scoring if LLM fails
+                display_message("⚠️ LLM scoring failed, using basic scoring method")
+                return await self.score_candidates_basic(candidates, user_query, user_preferences)
+            
+            # Apply scores to candidates
+            scored_candidates = []
+            for score_data in scoring_result["scored_candidates"]:
+                candidate_index = score_data["candidate_index"]
+                if 0 <= candidate_index < len(candidates):
+                    candidate = candidates[candidate_index].copy()
+                    candidate["ai_score"] = score_data["score"]
+                    candidate["ai_strengths"] = score_data.get("strengths", [])
+                    candidate["ai_concerns"] = score_data.get("concerns", [])
+                    candidate["ai_reasoning"] = score_data.get("reasoning", "")
+                    scored_candidates.append(candidate)
+            
+            # Sort by AI score
+            scored_candidates.sort(key=lambda x: x.get("ai_score", 0), reverse=True)
+            
+            # Apply budget constraints if specified
+            max_candidates = user_preferences.get("max_candidates", 10)
+            if max_candidates:
+                scored_candidates = scored_candidates[:max_candidates]
+            
             # Update state
-            if "next_state" in llm_response:
-                self.state = llm_response["next_state"]
-            else:
-                print("🎉 No next state provided, exiting.")
-                break
+            self.update_state("scored_candidates", scored_candidates)
+            
+            # Display results
+            display_message(f"✅ Successfully scored {len(scored_candidates)} candidates")
+            display_message(f"📈 Ranking Summary: {scoring_result.get('ranking_summary', 'No summary provided')}")
+            
+            # Show top candidates
+            display_message("\n🏆 TOP CANDIDATES:")
+            for i, candidate in enumerate(scored_candidates[:5], 1):
+                display_message(f"{i}. {candidate.get('name', 'Unknown')} - Score: {candidate.get('ai_score', 0)}")
+                if candidate.get('ai_strengths'):
+                    display_message(f"   Strengths: {', '.join(candidate['ai_strengths'])}")
+                if candidate.get('ai_concerns'):
+                    display_message(f"   Concerns: {', '.join(candidate['ai_concerns'])}")
+                display_message(f"   Reasoning: {candidate.get('ai_reasoning', 'No reasoning provided')}")
+                display_message("")
+            
+            return {
+                "scored_candidates": scored_candidates,
+                "total_scored": len(scored_candidates),
+                "ranking_summary": scoring_result.get('ranking_summary', ''),
+                "method": "llm_based"
+            }
+            
+        except Exception as e:
+            display_message(f"⚠️ Error in LLM scoring: {str(e)}")
+            display_message("Falling back to basic scoring method")
+            return await self.score_candidates_basic(candidates, user_query, user_preferences)
+    
+    async def score_candidates_basic(self, candidates, user_query, user_preferences=None):
+        """
+        Basic scoring method as fallback when LLM scoring fails.
+        """
+        if not candidates:
+            return []
+        
+        display_message("📊 Using basic scoring method...")
+        
+        scored_candidates = []
+        for i, candidate in enumerate(candidates):
+            candidate_copy = candidate.copy()
+            
+            # Basic scoring based on available data
+            score = 50  # Base score
+            
+            # Score based on name/title relevance
+            name = candidate.get('name', '').lower()
+            description = candidate.get('description', '').lower()
+            query_words = user_query.lower().split()
+            
+            for word in query_words:
+                if word in name or word in description:
+                    score += 10
+            
+            # Score based on subscriber/follower count
+            subscribers = candidate.get('subscribers', 0)
+            if isinstance(subscribers, (int, float)) and subscribers > 0:
+                if subscribers > 100000:
+                    score += 20
+                elif subscribers > 10000:
+                    score += 15
+                elif subscribers > 1000:
+                    score += 10
+            
+            # Cap the score at 100
+            score = min(score, 100)
+            
+            candidate_copy["ai_score"] = score
+            candidate_copy["ai_strengths"] = ["Basic scoring applied"]
+            candidate_copy["ai_concerns"] = ["Limited analysis available"]
+            candidate_copy["ai_reasoning"] = "Basic scoring based on keyword matching and audience size"
+            
+            scored_candidates.append(candidate_copy)
+        
+        # Sort by score
+        scored_candidates.sort(key=lambda x: x.get("ai_score", 0), reverse=True)
+        
+        return {
+            "scored_candidates": scored_candidates,
+            "total_scored": len(scored_candidates),
+            "ranking_summary": "Basic scoring applied due to LLM unavailability",
+            "method": "basic"
+        }
+    
+    async def prepare_outreach_with_llm(self, candidates, user_query, user_preferences=None, sender_info=None):
+        """
+        Prepare personalized outreach messages using LLM-powered content generation.
+        
+        Args:
+            candidates: List of candidate objects to prepare outreach for
+            user_query: The original user query describing what they're looking for
+            user_preferences: Dict containing user preferences (budget, location, etc.)
+            sender_info: Dict containing sender information (name, company, etc.)
+        
+        Returns:
+            Dictionary with prepared outreach messages
+        """
+        if not candidates:
+            return {"error": "No candidates provided", "outreach_messages": {}}
+        
+        if user_preferences is None:
+            user_preferences = self.state.get("user_preferences", {})
+        
+        if sender_info is None:
+            sender_info = self.state.get("sender_info", {})
+            
+        display_message(f"✍️ Preparing personalized outreach messages for {len(candidates)} candidates using AI...")
+        
+        outreach_messages = {}
+        
+        for i, candidate in enumerate(candidates, 1):
+            try:
+                display_message(f"📝 Generating message {i}/{len(candidates)}: {candidate.get('name', 'Unknown')}")
+                
+                # Create comprehensive prompt for LLM
+                outreach_prompt = f"""
+                You are an expert outreach specialist. Create a highly personalized and compelling outreach email.
 
-    async def invoke_function(self, func_name, inputs):
-        # Replace this with actual dynamic function calls
-        print(f"🛠️ Calling function: {func_name} with inputs {inputs}")
-        await asyncio.sleep(1)
-        return f"Simulated result of {func_name}"
+                CONTEXT:
+                User Query: {user_query}
+                
+                SENDER INFORMATION:
+                {json.dumps(sender_info, indent=2)}
+                
+                USER PREFERENCES:
+                {json.dumps(user_preferences, indent=2)}
+                
+                CANDIDATE DETAILS:
+                Name: {candidate.get('name', 'Unknown')}
+                Description: {candidate.get('description', 'No description available')}
+                URL: {candidate.get('url', 'No URL available')}
+                Source: {candidate.get('source', 'Unknown')}
+                AI Score: {candidate.get('ai_score', 'N/A')}
+                AI Strengths: {candidate.get('ai_strengths', [])}
+                Subscribers/Followers: {candidate.get('subscribers', 'Unknown')}
+                
+                REQUIREMENTS:
+                1. Create a personalized email that doesn't sound generic
+                2. Reference specific details about the candidate's work/expertise
+                3. Clearly explain the opportunity and value proposition
+                4. Include relevant budget/compensation information if available
+                5. Make it professional but warm and engaging
+                6. Include a clear call-to-action
+                7. Keep it concise but compelling (2-3 paragraphs max)
+                
+                Return your response as a JSON object with this structure:
+                {{
+                    "subject": "Compelling subject line",
+                    "body": "Full email body with personalization",
+                    "key_personalization": "Brief note about what made this personal",
+                    "call_to_action": "The specific action you want them to take"
+                }}
+                
+                Make sure the email feels authentic and specifically tailored to this candidate based on their background and the user's needs.
+                """
+                
+                # Get LLM response
+                llm_response = prompt_gemini(outreach_prompt)
+                
+                # Parse the LLM response
+                try:
+                    message_data = to_json(llm_response)
+                    
+                    if not message_data or "subject" not in message_data:
+                        # Fallback to basic template
+                        message_data = self._create_basic_outreach_template(candidate, user_query, user_preferences, sender_info)
+                        
+                except Exception as parse_error:
+                    display_message(f"⚠️ Error parsing LLM response for {candidate.get('name', 'Unknown')}: {parse_error}")
+                    message_data = self._create_basic_outreach_template(candidate, user_query, user_preferences, sender_info)
+                
+                # Add candidate info to message
+                message_data["candidate"] = candidate
+                message_data["candidate_name"] = candidate.get('name', 'Unknown')
+                message_data["candidate_email"] = candidate.get('email', '')
+                message_data["candidate_contact"] = candidate.get('contact_info', {})
+                message_data["generated_method"] = "llm"
+                
+                # Store the message
+                outreach_messages[candidate.get('name', f'Candidate_{i}')] = message_data
+                
+                display_message(f"✅ Generated personalized message for {candidate.get('name', 'Unknown')}")
+                
+            except Exception as e:
+                display_message(f"❌ Error generating message for {candidate.get('name', 'Unknown')}: {str(e)}")
+                # Create fallback message
+                fallback_message = self._create_basic_outreach_template(candidate, user_query, user_preferences, sender_info)
+                fallback_message["candidate"] = candidate
+                fallback_message["generated_method"] = "fallback"
+                outreach_messages[candidate.get('name', f'Candidate_{i}')] = fallback_message
+        
+        # Update state
+        self.update_state("outreach_messages", outreach_messages)
+        
+        # Display summary
+        display_message(f"📧 Successfully prepared {len(outreach_messages)} personalized outreach messages")
+        display_message("\n📋 OUTREACH MESSAGES SUMMARY:")
+        for name, msg_data in list(outreach_messages.items())[:3]:  # Show first 3
+            display_message(f"\n👤 {name}:")
+            display_message(f"   Subject: {msg_data.get('subject', 'No subject')}")
+            display_message(f"   Personalization: {msg_data.get('key_personalization', 'None')}")
+            display_message(f"   Method: {msg_data.get('generated_method', 'unknown')}")
+            
+        if len(outreach_messages) > 3:
+            display_message(f"\n... and {len(outreach_messages) - 3} more messages")
+        
+        return {
+            "status": "success",
+            "outreach_messages": outreach_messages,
+            "total_prepared": len(outreach_messages),
+            "message": f"Successfully prepared {len(outreach_messages)} personalized outreach messages"
+        }
+    
+    def _create_basic_outreach_template(self, candidate, user_query, user_preferences, sender_info):
+        """Create a basic outreach template as fallback"""
+        sender_name = sender_info.get('name', 'Our Team')
+        company_name = sender_info.get('company', 'Our Company')
+        budget_info = user_preferences.get('budget', 'Competitive compensation')
+        
+        subject = f"Collaboration Opportunity - {user_query}"
+        
+        body = f"""Hi {candidate.get('name', 'there')},
 
+I hope this email finds you well. I came across your work and was impressed by your expertise in {user_query}.
 
-    async def handle_understand_query(self):
-        self.query = input("🤖 What kind of people are you looking for? Please describe: ")
-        pref_input = input("💡 Any preferences (e.g., location, followers, platform)? If none, type 'none': ")
-        if pref_input.strip().lower() != "none":
-            self.preferences = prompt_gemini(f"Extract preferences from: {pref_input}")
-        self.state = SEARCH_FOR_PEOPLE
+I'm {sender_name} from {company_name}, and I'm reaching out regarding an opportunity that I believe would be a great fit for your background and expertise.
 
-    async def handle_search_for_people(self):
-        print("🔍 Searching for candidates...")
-        # Example: search both Google + channels
-        google_results = google_search(self.query, num_results=5)
-        channel_results = search_for_channels(self.query, max_channels=5)
+{user_query}
 
-        # Rank them using LLM based on user preferences
-        ranking_input = f"Given the user preferences {self.preferences}, rank these candidates:\n"
-        ranking_input += f"Google Results: {google_results}\nChannel Results: {channel_results}"
-        ranking = prompt_gemini(ranking_input)
+We're offering {budget_info} and would love to discuss this further with you.
 
-        self.candidates = ranking  # Simulated: you could parse or structure this better
-        self.state = REVIEW_CANDIDATES
+Would you be interested in a brief conversation to explore this opportunity?
 
-    async def handle_review_candidates(self):
-        print("📝 Here are the candidates I found and ranked:\n")
-        print(self.candidates)
-        confirmation = input("✅ Who would you like to contact? (Provide names, links, or 'all'): ")
-        if confirmation.strip().lower() == "all":
-            self.selected_candidates = self.candidates
+Best regards,
+{sender_name}
+{company_name}"""
+        
+        return {
+            "subject": subject,
+            "body": body,
+            "key_personalization": "Basic template with candidate name and expertise area",
+            "call_to_action": "Brief conversation to explore opportunity",
+            "generated_method": "template"
+        }
+
+    async def prepare_outreach(self):
+        """Legacy method for backward compatibility"""
+        candidates = self.state.get("scored_candidates", [])
+        user_query = self.state.get("search_criteria", {}).get("query", "")
+        user_preferences = self.state.get("user_preferences", {})
+        sender_info = self.state.get("sender_info", {})
+        
+        if not candidates:
+            display_message("❌ No scored candidates found. Please score candidates first.")
+            return "No candidates to prepare outreach for"
+        
+        result = await self.prepare_outreach_with_llm(candidates, user_query, user_preferences, sender_info)
+        
+        if result["status"] == "success":
+            display_message("✅ Outreach preparation completed successfully")
+            return f"Successfully prepared {result['total_prepared']} outreach messages"
         else:
-            self.selected_candidates = prompt_gemini(f"From these candidates {self.candidates}, select the ones matching: {confirmation}")
-        self.state = PREPARE_OUTREACH
-
-    async def handle_prepare_outreach(self):
-        self.outreach_message = input("✉️ What message would you like to send them? (Or type 'generate' to have AI draft one): ")
-        if self.outreach_message.strip().lower() == "generate":
-            self.outreach_message = prompt_gemini(f"Generate a professional but friendly outreach message for: {self.query}")
-        self.state = SEND_OUTREACH
-
-    async def handle_send_outreach(self):
-        print("📤 Sending outreach...")
-        for candidate in self.selected_candidates:
-            email = prompt_gemini(f"Extract the best email/contact for: {candidate}")
-            # send_email_with_token should be called with actual params, but we'll mock
-            print(f"Sending to {email}...\nMessage: {self.outreach_message}")
-        self.state = SCHEDULE_MEETINGS
-
-    async def handle_schedule_meetings(self):
-        print("📅 Let’s set up meetings with interested candidates!")
-        details = input("📌 Provide details: title, date/time (ISO format), duration mins, attendees (comma-separated): ")
-        self.meeting_details = prompt_gemini(f"Parse meeting details from: {details}")
-        # Example: create Google Meet meetings
-        # meeting = create_google_meet_meeting(
-        #     access_token=input("🔑 Provide your Google OAuth access token: "),
-        #     title=self.meeting_details['title'],
-        #     start_time=self.meeting_details['start_time'],
-        #     duration_minutes=int(self.meeting_details.get('duration_minutes', 60)),
-        #     attendees=self.meeting_details['attendees'].split(",")
-        # )
-        meeting= "test meeting"
-        print(f"✅ Meeting created: {meeting}")
-        self.state = None  # Finished
-
+            return f"Error preparing outreach: {result.get('message', 'Unknown error')}"
+        
+    async def run_agent(self, user_input=""):
+        """Run the agent with the provided user input"""
+        self.load_state()
+        while True:
+            response = await self.get_ai_response(user_input)
+            if not response or not response.get("function_calls") or len(response.get("function_calls", {}).keys()) == 0:
+                break
+            if response.get("function_calls").get("name") == "ask_user_clarification":
+                return response.get("function_calls").get("inputs", {}).get("questions", [])
+        self.save_state()
+        return self.state
+    
+    
+# Main execution
+async def main():
+    agent = AutonomousOutreachAgent(session_id="session_12345")  # Example session ID
+    await agent.run_agent("Find potential podcast guests in the AI space with a budget of $500 per episode.")
 
 if __name__ == "__main__":
-    agent = AutonomousOutreachAgent()
-    asyncio.run(agent.run())
+    asyncio.run(main())
