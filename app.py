@@ -34,7 +34,7 @@ class StreamingAgent:
             # Set waiting state and add the input request message
             self.waiting_for_input = True
             self.pending_input_prompt = prompt
-            self.add_message('input_request', prompt)
+            # self.add_message('input_request', prompt)
             # Return empty string for now - the actual input will come via the web interface
             return ""
         
@@ -66,7 +66,6 @@ class StreamingAgent:
             except:
                 break
                 
-
 
 @app.route('/')
 def index():
@@ -152,9 +151,6 @@ async def continue_agent_processing(session_id, user_input):
             "content": user_input
         })
         
-        # Update the agent's state with the user input
-        # This allows the agent to use the input in its next response
-        agent.state["last_user_input"] = user_input
         agent.save_state()
         
         # Continue processing with empty input to let the agent continue
@@ -173,7 +169,6 @@ async def process_agent_message(session_id, user_input):
     
     try:
         # Process the message
-        streaming_agent.add_message('agent_thinking', 'Processing your request...')
         await process_agent_logic(session_id, streaming_agent, agent, user_input)
         
     except Exception as e:
@@ -200,12 +195,14 @@ async def process_agent_logic(session_id, streaming_agent, agent, user_input):
                 
                 # Execute the function
                 function_result = await agent.execute_function(func_name, func_inputs)
-                
-                # Check if we're waiting for input (for ask_user_clarification)
-                if func_name == "ask_user_clarification":
+                print(f"Function {func_name} executed with result: {function_result}")
+
+                # Check if we're waiting for input (for display_to_user_and_wait_for_input)
+                if func_name == "display_to_user_and_wait_for_input":
                     streaming_agent.waiting_for_input = True
                     streaming_agent.pending_input_prompt = function_result
-                    streaming_agent.add_message('info', 'Waiting for your input to continue...')
+                    streaming_agent.add_message('function_result', function_result)
+                    streaming_agent.add_message('input_request', 'Waiting for your input to continue...')
                     return
                 
                 streaming_agent.add_message('function_result', function_result)
@@ -237,7 +234,7 @@ async def process_agent_logic(session_id, streaming_agent, agent, user_input):
                         function_result = await agent.execute_function(func_name, func_inputs)
                         
                         # Check if we're waiting for input
-                        if func_name == "ask_user_clarification":
+                        if func_name == "display_to_user_and_wait_for_input":
                             streaming_agent.waiting_for_input = True
                             streaming_agent.pending_input_prompt = function_result
                             streaming_agent.add_message('info', 'Waiting for your input to continue...')

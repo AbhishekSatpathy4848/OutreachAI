@@ -113,8 +113,8 @@ FUNCTION_DEFINITIONS = [
             }
         },
         {
-            "name": "display_message",
-            "description": "Displays a message to the user in the console.",
+            "name": "display_to_user",
+            "description": "Displays a message to the user without expecting any response. Use this for sharing information, updates, or results.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -124,18 +124,15 @@ FUNCTION_DEFINITIONS = [
             }
         },
         {
-            "name": "ask_user_clarification",
-            "description": "Asks the user for clarification on a specific topic.",
+            "name": "display_to_user_and_wait_for_input",
+            "description": "Displays a message to the user and waits for their input to continue. Use this when you need user interaction to proceed.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "questions": {
-                        "type": "array",
-                        "items": { "type": "string" },
-                        "description": "List of questions to ask the user for clarification."
-                    }
+                    "message": { "type": "string", "description": "The message to display to the user before waiting for input." },
+                    "prompt": { "type": "string", "description": "Optional prompt text to guide user input.", "default": "Please provide your response:" }
                 },
-                "required": ["questions"]
+                "required": ["message"]
             }
         },
         {
@@ -197,7 +194,6 @@ FUNCTION_DEFINITIONS = [
         }
     ]
 
-
 INITIAL_PROMPT = f'''
 You are a highly autonomous outreach agent. Your primary goal is to find and connect with the right people for various purposes (e.g., podcast guests, influencers, co-founders) with minimal user intervention. You will automate the entire process from search to outreach.
 
@@ -218,9 +214,9 @@ You must always reply in a JSON format with the following structure:
 **Guiding Principles for Autonomy:**
 1.  **Act Independently:** Your main objective is to achieve the user's goal without asking for help.
 2.  **Assume and Proceed:** Based on the initial query, make logical assumptions about user preferences (e.g., budget, location, experience level) to avoid unnecessary questions. If the user provides specific preferences, use them. Otherwise, proceed with your best judgment.
-3.  **Clarify Only When Blocked:** Only use the `ask_user_clarification` function as a last resort when you are completely blocked and cannot proceed with the task.
+3.  **Clarify Only When Blocked:** Only use the `display_to_user_and_wait_for_input` function as a last resort when you are completely blocked and cannot proceed with the task.
 4.  **Proactive Execution:** Use all available tools to gather a comprehensive list of candidates. Score them, prepare outreach messages, and present the results.
-5.  **Inform, Don't Ask:** Keep the user informed of your progress by using the `display_message` function. Show your findings and actions, but do not ask for confirmation at every step.
+5.  **Inform, Don't Ask:** Keep the user informed of your progress by using the `display_to_user` function. Show your findings and actions, but do not ask for confirmation at every step.
 
 If there is no function call, return an empty dict for "function_calls".
 Your goal is maximum automation and minimal human intervention.
@@ -232,7 +228,6 @@ import asyncio
 import json
 import json
 import asyncio
-from datetime import datetime
 
 from gemini_call import prompt_gemini
 from google_search_api import google_search
@@ -251,21 +246,6 @@ def to_json(json_string):
         print("Error parsing JSON!!")
 
 
-# # Global handlers for display and input - can be overridden for web interface
-# _display_handler = None
-# _input_handler = None
-# _pending_inputs = {}
-
-# def set_display_handler(handler):
-#     """Set custom display handler for web interface"""
-#     global _display_handler
-#     _display_handler = handler
-
-# def set_input_handler(handler):
-#     """Set custom input handler for web interface"""
-#     global _input_handler
-#     _input_handler = handler
-
 # Global handlers for display and input - can be overridden for web interface
 _display_handler = None
 _input_handler = None
@@ -280,31 +260,24 @@ def set_input_handler(handler):
     global _input_handler
     _input_handler = handler
 
-def display_message(message):
-    """Displays a message to the user"""
+def display_to_user(message):
+    """Displays a message to the user without expecting response"""
     if _display_handler:
         _display_handler(message)
     else:
         print(f"💬 {message}")
     return message
 
-def get_user_input(prompt):
-    """Gets input from the user"""
-    return input(f"{prompt} ").strip()
-
-def ask_user_clarification(questions, session_id=None):
-    """Asks the user for clarification on a specific topic."""
+def display_to_user_and_wait_for_input(message, prompt="Please provide your response:", session_id=None):
+    """Displays a message to the user and waits for their input to continue"""
+    full_message = f"{message}\n\n{prompt}"
+    
     if _input_handler and session_id:
-        question_text = "❓ I need some clarification to continue:\n"
-        for i, question in enumerate(questions, 1):
-            question_text += f"{i}. {question}\n"
-        question_text += "\nPlease provide your response below."
-        return _input_handler(question_text, session_id)
+        _input_handler(full_message, session_id)
+        return full_message
     else:
-        print("❓ Please clarify:")
-        for i, question in enumerate(questions, 1):
-            print(f"{i}. {question}")
-        user_response = input("Enter your response: ").strip()
+        print(f"💬 {message}")
+        user_response = input(f"{prompt} ").strip()
         return user_response
 
 def fetch_credentials():
@@ -370,19 +343,20 @@ class AutonomousOutreachAgent:
     async def execute_function(self, function_name, inputs):
         """Execute a function call and return the result"""
         try:
-            if function_name == "ask_user_clarification":
+            if function_name == "display_to_user_and_wait_for_input":
                 # For streaming interface, we need to wait for user input
-                questions = inputs.get("questions", [])
+                message = inputs.get("message", "")
+                prompt = inputs.get("prompt", "Please provide your response:")
                 if self.streaming_agent:
                     # We're in a streaming context - trigger the input request
-                    result = ask_user_clarification(questions, self.session_id)
+                    result = display_to_user_and_wait_for_input(message, prompt, self.session_id)
                     # The streaming agent will handle the waiting state
                     return result
                 else:
                     # Non-streaming context - use regular input
-                    return ask_user_clarification(questions)
-            elif function_name == "display_message":
-                display_message(inputs["message"])
+                    return display_to_user_and_wait_for_input(message, prompt)
+            elif function_name == "display_to_user":
+                display_to_user(inputs["message"])
                 return "Message displayed"
             elif function_name == "google_search":
                 return google_search(inputs["query"], inputs.get("num_results", 5))
@@ -435,11 +409,6 @@ class AutonomousOutreachAgent:
         Conversation history: {json.dumps(self.state["conversation_history"], indent=2)} \n
 
         """
-        # Current state: {json.dumps(self.state, indent=2)} \n
-
-
-        # if user_input:
-        #     context += f"User input: {user_input}\n"
 
         try:
             response = prompt_gemini(context)
@@ -499,50 +468,45 @@ class AutonomousOutreachAgent:
         except Exception as e:
             return f"Error getting AI response: {str(e)}"
     
-    def update_state(self, key, value):
-        """Update a specific state key"""
-        self.state[key] = value
-        self.save_state()
-    
-    
+
     async def score_candidates_with_llm(self, candidates, user_query, user_preferences=None):
         """
         Score and rank candidates using LLM-based analysis.
-        
+
         Args:
             candidates: List of candidate objects
             user_query: The original user query describing what they're looking for
             user_preferences: Dict containing user preferences (budget, location, etc.)
-        
+
         Returns:
             List of scored and ranked candidates
         """
         if not candidates:
             return []
-        
+
         if user_preferences is None:
             user_preferences = self.state.get("user_preferences", {})
             
-        display_message(f"📊 Scoring {len(candidates)} candidates using AI analysis...")
-        
+        print(f"📊 Scoring {len(candidates)} candidates using AI analysis...")
+
         # Prepare the scoring prompt for the LLM
         scoring_prompt = f"""
         You are an expert recruiter and talent evaluator. Please analyze and score the following candidates based on the user's requirements.
 
         USER QUERY: {user_query}
-        
+
         USER PREFERENCES:
         {json.dumps(user_preferences, indent=2)}
-        
+
         CANDIDATES TO SCORE:
         {json.dumps(candidates, indent=2)}
-        
+
         Please analyze each candidate and provide:
         1. A relevance score from 0-100 (100 being perfect match)
         2. Key strengths that match the requirements
         3. Potential concerns or gaps
         4. A brief reasoning for the score
-        
+
         Consider the following factors:
         - Relevance to the user's query and requirements
         - Experience level and expertise
@@ -550,7 +514,7 @@ class AutonomousOutreachAgent:
         - Location preferences (if specified)
         - Budget constraints and typical rates
         - Overall fit for the intended purpose
-        
+
         Return your response as a JSON object with this structure:
         {{
             "scored_candidates": [
@@ -566,7 +530,7 @@ class AutonomousOutreachAgent:
             "ranking_summary": "Brief summary of the overall ranking rationale"
         }}
         """
-        
+
         try:
             # Get LLM response
             llm_response = prompt_gemini(scoring_prompt)
@@ -576,7 +540,7 @@ class AutonomousOutreachAgent:
             
             if not scoring_result or "scored_candidates" not in scoring_result:
                 # Fallback to basic scoring if LLM fails
-                display_message("⚠️ LLM scoring failed, using basic scoring method")
+                print("⚠️ LLM scoring failed, using basic scoring method")
                 return await self.score_candidates_basic(candidates, user_query, user_preferences)
             
             # Apply scores to candidates
@@ -603,19 +567,19 @@ class AutonomousOutreachAgent:
             self.update_state("scored_candidates", scored_candidates)
             
             # Display results
-            display_message(f"✅ Successfully scored {len(scored_candidates)} candidates")
-            display_message(f"📈 Ranking Summary: {scoring_result.get('ranking_summary', 'No summary provided')}")
+            print(f"✅ Successfully scored {len(scored_candidates)} candidates")
+            print(f"📈 Ranking Summary: {scoring_result.get('ranking_summary', 'No summary provided')}")
             
             # Show top candidates
-            display_message("\n🏆 TOP CANDIDATES:")
+            print("\n🏆 TOP CANDIDATES:")
             for i, candidate in enumerate(scored_candidates[:5], 1):
-                display_message(f"{i}. {candidate.get('name', 'Unknown')} - Score: {candidate.get('ai_score', 0)}")
+                print(f"{i}. {candidate.get('name', 'Unknown')} - Score: {candidate.get('ai_score', 0)}")
                 if candidate.get('ai_strengths'):
-                    display_message(f"   Strengths: {', '.join(candidate['ai_strengths'])}")
+                    print(f"   Strengths: {', '.join(candidate['ai_strengths'])}")
                 if candidate.get('ai_concerns'):
-                    display_message(f"   Concerns: {', '.join(candidate['ai_concerns'])}")
-                display_message(f"   Reasoning: {candidate.get('ai_reasoning', 'No reasoning provided')}")
-                display_message("")
+                    print(f"   Concerns: {', '.join(candidate['ai_concerns'])}")
+                print(f"   Reasoning: {candidate.get('ai_reasoning', 'No reasoning provided')}")
+                print("")
             
             return {
                 "scored_candidates": scored_candidates,
@@ -625,19 +589,19 @@ class AutonomousOutreachAgent:
             }
             
         except Exception as e:
-            display_message(f"⚠️ Error in LLM scoring: {str(e)}")
-            display_message("Falling back to basic scoring method")
+            print(f"⚠️ Error in LLM scoring: {str(e)}")
+            print("Falling back to basic scoring method")
             return await self.score_candidates_basic(candidates, user_query, user_preferences)
-    
+
     async def score_candidates_basic(self, candidates, user_query, user_preferences=None):
         """
         Basic scoring method as fallback when LLM scoring fails.
         """
         if not candidates:
             return []
-        
-        display_message("📊 Using basic scoring method...")
-        
+
+        print("📊 Using basic scoring method...")
+
         scored_candidates = []
         for i, candidate in enumerate(candidates):
             candidate_copy = candidate.copy()
@@ -673,10 +637,10 @@ class AutonomousOutreachAgent:
             candidate_copy["ai_reasoning"] = "Basic scoring based on keyword matching and audience size"
             
             scored_candidates.append(candidate_copy)
-        
+
         # Sort by score
         scored_candidates.sort(key=lambda x: x.get("ai_score", 0), reverse=True)
-        
+
         return {
             "scored_candidates": scored_candidates,
             "total_scored": len(scored_candidates),
@@ -684,166 +648,167 @@ class AutonomousOutreachAgent:
             "method": "basic"
         }
     
+
     async def prepare_outreach_with_llm(self, candidates, user_query, user_preferences=None, sender_info=None):
-        """
-        Prepare personalized outreach messages using LLM-powered content generation.
-        
-        Args:
-            candidates: List of candidate objects to prepare outreach for
-            user_query: The original user query describing what they're looking for
-            user_preferences: Dict containing user preferences (budget, location, etc.)
-            sender_info: Dict containing sender information (name, company, etc.)
-        
-        Returns:
-            Dictionary with prepared outreach messages
-        """
-        if not candidates:
-            return {"error": "No candidates provided", "outreach_messages": {}}
-        
-        if user_preferences is None:
-            user_preferences = self.state.get("user_preferences", {})
-        
-        if sender_info is None:
-            sender_info = self.state.get("sender_info", {})
+            """
+            Prepare personalized outreach messages using LLM-powered content generation.
             
-        display_message(f"✍️ Preparing personalized outreach messages for {len(candidates)} candidates using AI...")
-        
-        outreach_messages = {}
-        
-        for i, candidate in enumerate(candidates, 1):
-            try:
-                display_message(f"📝 Generating message {i}/{len(candidates)}: {candidate.get('name', 'Unknown')}")
+            Args:
+                candidates: List of candidate objects to prepare outreach for
+                user_query: The original user query describing what they're looking for
+                user_preferences: Dict containing user preferences (budget, location, etc.)
+                sender_info: Dict containing sender information (name, company, etc.)
+            
+            Returns:
+                Dictionary with prepared outreach messages
+            """
+            if not candidates:
+                return {"error": "No candidates provided", "outreach_messages": {}}
+            
+            if user_preferences is None:
+                user_preferences = self.state.get("user_preferences", {})
+            
+            if sender_info is None:
+                sender_info = self.state.get("sender_info", {})
                 
-                # Create comprehensive prompt for LLM
-                outreach_prompt = f"""
-                You are an expert outreach specialist. Create a highly personalized and compelling outreach email.
-
-                CONTEXT:
-                User Query: {user_query}
-                
-                SENDER INFORMATION:
-                {json.dumps(sender_info, indent=2)}
-                
-                USER PREFERENCES:
-                {json.dumps(user_preferences, indent=2)}
-                
-                CANDIDATE DETAILS:
-                Name: {candidate.get('name', 'Unknown')}
-                Description: {candidate.get('description', 'No description available')}
-                URL: {candidate.get('url', 'No URL available')}
-                Source: {candidate.get('source', 'Unknown')}
-                AI Score: {candidate.get('ai_score', 'N/A')}
-                AI Strengths: {candidate.get('ai_strengths', [])}
-                Subscribers/Followers: {candidate.get('subscribers', 'Unknown')}
-                
-                REQUIREMENTS:
-                1. Create a personalized email that doesn't sound generic
-                2. Reference specific details about the candidate's work/expertise
-                3. Clearly explain the opportunity and value proposition
-                4. Include relevant budget/compensation information if available
-                5. Make it professional but warm and engaging
-                6. Include a clear call-to-action
-                7. Keep it concise but compelling (2-3 paragraphs max)
-                
-                Return your response as a JSON object with this structure:
-                {{
-                    "subject": "Compelling subject line",
-                    "body": "Full email body with personalization",
-                    "key_personalization": "Brief note about what made this personal",
-                    "call_to_action": "The specific action you want them to take"
-                }}
-                
-                Make sure the email feels authentic and specifically tailored to this candidate based on their background and the user's needs.
-                """
-                
-                # Get LLM response
-                llm_response = prompt_gemini(outreach_prompt)
-                
-                # Parse the LLM response
+            print(f"✍️ Preparing personalized outreach messages for {len(candidates)} candidates using AI...")
+            
+            outreach_messages = {}
+            
+            for i, candidate in enumerate(candidates, 1):
                 try:
-                    message_data = to_json(llm_response)
+                    print(f"📝 Generating message {i}/{len(candidates)}: {candidate.get('name', 'Unknown')}")
                     
-                    if not message_data or "subject" not in message_data:
-                        # Fallback to basic template
-                        message_data = self._create_basic_outreach_template(candidate, user_query, user_preferences, sender_info)
+                    # Create comprehensive prompt for LLM
+                    outreach_prompt = f"""
+                    You are an expert outreach specialist. Create a highly personalized and compelling outreach email.
+
+                    CONTEXT:
+                    User Query: {user_query}
+                    
+                    SENDER INFORMATION:
+                    {json.dumps(sender_info, indent=2)}
+                    
+                    USER PREFERENCES:
+                    {json.dumps(user_preferences, indent=2)}
+                    
+                    CANDIDATE DETAILS:
+                    Name: {candidate.get('name', 'Unknown')}
+                    Description: {candidate.get('description', 'No description available')}
+                    URL: {candidate.get('url', 'No URL available')}
+                    Source: {candidate.get('source', 'Unknown')}
+                    AI Score: {candidate.get('ai_score', 'N/A')}
+                    AI Strengths: {candidate.get('ai_strengths', [])}
+                    Subscribers/Followers: {candidate.get('subscribers', 'Unknown')}
+                    
+                    REQUIREMENTS:
+                    1. Create a personalized email that doesn't sound generic
+                    2. Reference specific details about the candidate's work/expertise
+                    3. Clearly explain the opportunity and value proposition
+                    4. Include relevant budget/compensation information if available
+                    5. Make it professional but warm and engaging
+                    6. Include a clear call-to-action
+                    7. Keep it concise but compelling (2-3 paragraphs max)
+                    
+                    Return your response as a JSON object with this structure:
+                    {{
+                        "subject": "Compelling subject line",
+                        "body": "Full email body with personalization",
+                        "key_personalization": "Brief note about what made this personal",
+                        "call_to_action": "The specific action you want them to take"
+                    }}
+                    
+                    Make sure the email feels authentic and specifically tailored to this candidate based on their background and the user's needs.
+                    """
+                    
+                    # Get LLM response
+                    llm_response = prompt_gemini(outreach_prompt)
+                    
+                    # Parse the LLM response
+                    try:
+                        message_data = to_json(llm_response)
                         
-                except Exception as parse_error:
-                    display_message(f"⚠️ Error parsing LLM response for {candidate.get('name', 'Unknown')}: {parse_error}")
-                    message_data = self._create_basic_outreach_template(candidate, user_query, user_preferences, sender_info)
-                
-                # Add candidate info to message
-                message_data["candidate"] = candidate
-                message_data["candidate_name"] = candidate.get('name', 'Unknown')
-                message_data["candidate_email"] = candidate.get('email', '')
-                message_data["candidate_contact"] = candidate.get('contact_info', {})
-                message_data["generated_method"] = "llm"
-                
-                # Store the message
-                outreach_messages[candidate.get('name', f'Candidate_{i}')] = message_data
-                
-                display_message(f"✅ Generated personalized message for {candidate.get('name', 'Unknown')}")
-                
-            except Exception as e:
-                display_message(f"❌ Error generating message for {candidate.get('name', 'Unknown')}: {str(e)}")
-                # Create fallback message
-                fallback_message = self._create_basic_outreach_template(candidate, user_query, user_preferences, sender_info)
-                fallback_message["candidate"] = candidate
-                fallback_message["generated_method"] = "fallback"
-                outreach_messages[candidate.get('name', f'Candidate_{i}')] = fallback_message
-        
-        # Update state
-        self.update_state("outreach_messages", outreach_messages)
-        
-        # Display summary
-        display_message(f"📧 Successfully prepared {len(outreach_messages)} personalized outreach messages")
-        display_message("\n📋 OUTREACH MESSAGES SUMMARY:")
-        for name, msg_data in list(outreach_messages.items())[:3]:  # Show first 3
-            display_message(f"\n👤 {name}:")
-            display_message(f"   Subject: {msg_data.get('subject', 'No subject')}")
-            display_message(f"   Personalization: {msg_data.get('key_personalization', 'None')}")
-            display_message(f"   Method: {msg_data.get('generated_method', 'unknown')}")
+                        if not message_data or "subject" not in message_data:
+                            # Fallback to basic template
+                            message_data = self._create_basic_outreach_template(candidate, user_query, user_preferences, sender_info)
+                            
+                    except Exception as parse_error:
+                        print(f"⚠️ Error parsing LLM response for {candidate.get('name', 'Unknown')}: {parse_error}")
+                        message_data = self._create_basic_outreach_template(candidate, user_query, user_preferences, sender_info)
+                    
+                    # Add candidate info to message
+                    message_data["candidate"] = candidate
+                    message_data["candidate_name"] = candidate.get('name', 'Unknown')
+                    message_data["candidate_email"] = candidate.get('email', '')
+                    message_data["candidate_contact"] = candidate.get('contact_info', {})
+                    message_data["generated_method"] = "llm"
+                    
+                    # Store the message
+                    outreach_messages[candidate.get('name', f'Candidate_{i}')] = message_data
+                    
+                    print(f"✅ Generated personalized message for {candidate.get('name', 'Unknown')}")
+                    
+                except Exception as e:
+                    print(f"❌ Error generating message for {candidate.get('name', 'Unknown')}: {str(e)}")
+                    # Create fallback message
+                    fallback_message = self._create_basic_outreach_template(candidate, user_query, user_preferences, sender_info)
+                    fallback_message["candidate"] = candidate
+                    fallback_message["generated_method"] = "fallback"
+                    outreach_messages[candidate.get('name', f'Candidate_{i}')] = fallback_message
             
-        if len(outreach_messages) > 3:
-            display_message(f"\n... and {len(outreach_messages) - 3} more messages")
+            # Update state
+            self.update_state("outreach_messages", outreach_messages)
+            
+            # Display summary
+            print(f"📧 Successfully prepared {len(outreach_messages)} personalized outreach messages")
+            print("\n📋 OUTREACH MESSAGES SUMMARY:")
+            for name, msg_data in list(outreach_messages.items())[:3]:  # Show first 3
+                print(f"\n👤 {name}:")
+                print(f"   Subject: {msg_data.get('subject', 'No subject')}")
+                print(f"   Personalization: {msg_data.get('key_personalization', 'None')}")
+                print(f"   Method: {msg_data.get('generated_method', 'unknown')}")
+                
+            if len(outreach_messages) > 3:
+                print(f"\n... and {len(outreach_messages) - 3} more messages")
+            
+            return {
+                "status": "success",
+                "outreach_messages": outreach_messages,
+                "total_prepared": len(outreach_messages),
+                "message": f"Successfully prepared {len(outreach_messages)} personalized outreach messages"
+            }
         
-        return {
-            "status": "success",
-            "outreach_messages": outreach_messages,
-            "total_prepared": len(outreach_messages),
-            "message": f"Successfully prepared {len(outreach_messages)} personalized outreach messages"
-        }
-    
     def _create_basic_outreach_template(self, candidate, user_query, user_preferences, sender_info):
-        """Create a basic outreach template as fallback"""
-        sender_name = sender_info.get('name', 'Our Team')
-        company_name = sender_info.get('company', 'Our Company')
-        budget_info = user_preferences.get('budget', 'Competitive compensation')
-        
-        subject = f"Collaboration Opportunity - {user_query}"
-        
-        body = f"""Hi {candidate.get('name', 'there')},
+            """Create a basic outreach template as fallback"""
+            sender_name = sender_info.get('name', 'Our Team')
+            company_name = sender_info.get('company', 'Our Company')
+            budget_info = user_preferences.get('budget', 'Competitive compensation')
+            
+            subject = f"Collaboration Opportunity - {user_query}"
+            
+            body = f"""Hi {candidate.get('name', 'there')},
 
-I hope this email finds you well. I came across your work and was impressed by your expertise in {user_query}.
+            I hope this email finds you well. I came across your work and was impressed by your expertise in {user_query}.
 
-I'm {sender_name} from {company_name}, and I'm reaching out regarding an opportunity that I believe would be a great fit for your background and expertise.
+            I'm {sender_name} from {company_name}, and I'm reaching out regarding an opportunity that I believe would be a great fit for your background and expertise.
 
-{user_query}
+            {user_query}
 
-We're offering {budget_info} and would love to discuss this further with you.
+            We're offering {budget_info} and would love to discuss this further with you.
 
-Would you be interested in a brief conversation to explore this opportunity?
+            Would you be interested in a brief conversation to explore this opportunity?
 
-Best regards,
-{sender_name}
-{company_name}"""
-        
-        return {
-            "subject": subject,
-            "body": body,
-            "key_personalization": "Basic template with candidate name and expertise area",
-            "call_to_action": "Brief conversation to explore opportunity",
-            "generated_method": "template"
-        }
+            Best regards,
+            {sender_name}
+            {company_name}"""
+                    
+            return {
+                "subject": subject,
+                "body": body,
+                "key_personalization": "Basic template with candidate name and expertise area",
+                "call_to_action": "Brief conversation to explore opportunity",
+                "generated_method": "template"
+            }
 
     async def prepare_outreach(self):
         """Legacy method for backward compatibility"""
@@ -853,16 +818,21 @@ Best regards,
         sender_info = self.state.get("sender_info", {})
         
         if not candidates:
-            display_message("❌ No scored candidates found. Please score candidates first.")
+            print("❌ No scored candidates found. Please score candidates first.")
             return "No candidates to prepare outreach for"
         
         result = await self.prepare_outreach_with_llm(candidates, user_query, user_preferences, sender_info)
         
         if result["status"] == "success":
-            display_message("✅ Outreach preparation completed successfully")
+            print("✅ Outreach preparation completed successfully")
             return f"Successfully prepared {result['total_prepared']} outreach messages"
         else:
             return f"Error preparing outreach: {result.get('message', 'Unknown error')}"
+        
+    def update_state(self, key, value):
+        """Update a specific state key"""
+        self.state[key] = value
+        self.save_state()
         
     async def run_agent(self, user_input=""):
         """Run the agent with the provided user input"""
@@ -871,16 +841,15 @@ Best regards,
             response = await self.get_ai_response(user_input)
             if not response or not response.get("function_calls") or len(response.get("function_calls", {}).keys()) == 0:
                 break
-            if response.get("function_calls").get("name") == "ask_user_clarification":
-                return response.get("function_calls").get("inputs", {}).get("questions", [])
+            if response.get("function_calls").get("name") == "display_to_user_and_wait_for_input":
+                return response.get("function_calls").get("inputs", {}).get("message", "")
         self.save_state()
         return self.state
-    
     
 # Main execution
 async def main():
     agent = AutonomousOutreachAgent(session_id="session_12345")  # Example session ID
-    await agent.run_agent("Find potential podcast guests in the AI space with a budget of $500 per episode.")
+    await agent.run_agent("hello")
 
 if __name__ == "__main__":
     asyncio.run(main())
