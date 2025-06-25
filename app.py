@@ -130,7 +130,11 @@ def index():
 @app.route('/start_session', methods=['POST'])
 def start_session():
     """Start a new agent session"""
-    session_id = str(uuid.uuid4())
+    data = request.get_json()
+    if data and 'campaignId' in data:
+        session_id = data.get('campaignId')
+    else:
+        session_id = str(uuid.uuid4())
     
     # Create new streaming agent
     streaming_agent = StreamingAgent(session_id)
