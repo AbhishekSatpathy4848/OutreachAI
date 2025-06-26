@@ -191,6 +191,28 @@ FUNCTION_DEFINITIONS = [
                 "properties": {},
                 "required": []
             }
+        },
+        {
+            "name": "make_crypto_actions",
+            "description": "Executes various crypto actions using the Coinbase AgentKit, such as receiving wallet details, checking balances, and transferring tokens(native or ERC20 tokens). You'll be using only two ERC-20 tokens here: USDC or EURC, nothing else. ",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "prompt": { "type": "string", "description": "The prompt describing the crypto action to perform in Natural Language." }
+                },
+                "required": ["prompt"]
+            }
+        },
+        {
+            "name": "update_available_budget",
+            "description": "Updates the available budget left for outreach.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "new_budget": { "type": "number", "description": "The new budget amount left." }
+                },
+                "required": ["new_budget"]
+            }
         }
     ]
 
@@ -222,6 +244,7 @@ If there is no function call, return an empty dict for "function_calls".
 Your goal is maximum automation and minimal human intervention.
 
 ALWAYS REPLY IN A JSON FORMAT AS DESCRIBED ABOVE, EVEN IF THERE IS AN ERROR OR ANYTHING
+IN CASE YOU NEED IT, THE CONTRACT ADDRESS OF USDC IS `0x036CbD53842c5426634e7929541eC2318f3dCF7e` AND THE CONTRACT ADDRESS OF EURC IS `0x808456652fdb597867f38412077A9182bf77359F`
 '''
 
 import asyncio
@@ -229,6 +252,7 @@ import json
 import json
 import asyncio
 
+from agentkit import make_crypto_actions
 from gemini_call import prompt_gemini
 from google_search_api import google_search
 from google_services import create_google_meet_meeting, send_email_with_token
@@ -280,20 +304,20 @@ def display_to_user_and_wait_for_input(message, prompt="Please provide your resp
         user_response = input(f"{prompt} ").strip()
         return user_response
 
-def fetch_credentials():
-    # TODO: Implement a secure way to fetch credentials
+def fetch_credentials(session_id):
     try:
-        f = open ("creds.txt", "r")
-        lines = f.readlines()
-        f.close()
-        return lines
+        with open(f"creds/creds_{session_id}.json", "r") as f:
+            json_data = json.load(f)
+        return json_data["credentials"]
     except FileNotFoundError:
         return ["No credentials file found"]
+    except json.JSONDecodeError as e:
+        print(f"Error parsing credentials JSON: {e}")
+        return ["Invalid credentials file format"]
+    except Exception as e:
+        print(f"Error reading credentials: {e}")
+        return ["Error reading credentials file"]
 
-def get_user_details():
-    """Fetches user details from a file or database."""
-
-    # TODO: Complete this function to fetch user details
 
 class AutonomousOutreachAgent:
     def __init__(self, session_id=None):
@@ -308,6 +332,7 @@ class AutonomousOutreachAgent:
             "outreach_messages": {},
             "scheduled_meetings": [],
             "user_preferences": {},
+            "budget_left": 0,
             "errors": [],
             "conversation_history": [],
         }
@@ -326,14 +351,14 @@ class AutonomousOutreachAgent:
     def save_state(self, filename=None):
         """Save current state to file"""
         if filename is None:
-            filename = f"agent_state_{self.session_id}.json" if self.session_id else "agent_state.json"
+            filename = f"agent_state/agent_state_{self.session_id}.json" if self.session_id else "agent_state/agent_state.json"
         with open(filename, 'w') as f:
             json.dump(self.state, f, indent=2)
     
     def load_state(self, filename=None):
         """Load state from file"""
         if filename is None:
-            filename = f"agent_state_{self.session_id}.json" if self.session_id else "agent_state.json"
+            filename = f"agent_state/agent_state_{self.session_id}.json" if self.session_id else "agent_state/agent_state.json"
         try:
             with open(filename, 'r') as f:
                 self.state = json.load(f)
@@ -367,7 +392,26 @@ class AutonomousOutreachAgent:
             elif function_name == "scrapeYoutubeAboutPage":
                 return await scrapeYoutubeAboutPage(inputs["url"])
             elif function_name == "send_email_with_token":
-                return send_email_with_token(**inputs)
+                response = send_email_with_token(**inputs)
+                if response.get("status") == "sent":
+                    thread_id = response.get("thread_id")
+                    
+                    # Read, modify, and write back the credentials file
+                    creds_file_path = f"creds/creds_{self.session_id}.json"
+                    try:
+                        with open(creds_file_path, "r") as f:
+                            json_data = json.load(f)
+                        
+                        if "thread_ids_sent" not in json_data:
+                            json_data["thread_ids_sent"] = []
+                        json_data["thread_ids_sent"].append(thread_id)
+                        
+                        with open(creds_file_path, "w") as f:
+                            f.write(json.dumps(json_data, indent=2))
+                    except Exception as e:
+                        print(f"Error updating credentials file: {e}")
+
+                return response
             elif function_name == "create_google_meet_meeting":
                 return create_google_meet_meeting(**inputs)
             elif function_name == "score_candidates":
@@ -384,7 +428,11 @@ class AutonomousOutreachAgent:
                     inputs.get("sender_info", {})
                 )
             elif function_name == "fetch_credentials":
-                return fetch_credentials()
+                return fetch_credentials(self.session_id)
+            elif function_name == "make_crypto_actions":
+                return make_crypto_actions(inputs["prompt"])
+            elif function_name == "update_available_budget":
+                return self.update_available_budget(inputs.get("new_budget"))
             else:
                 return f"Unknown function: {function_name}"
         except Exception as e:
@@ -467,7 +515,12 @@ class AutonomousOutreachAgent:
             
         except Exception as e:
             return f"Error getting AI response: {str(e)}"
-    
+
+    def update_available_budget(self, new_budget:int):
+        """Update the available budget balance"""
+        self.state["budget_left"] = new_budget
+        self.save_state()
+        return f"Available budget updated to {new_budget}"
 
     async def score_candidates_with_llm(self, candidates, user_query, user_preferences=None):
         """

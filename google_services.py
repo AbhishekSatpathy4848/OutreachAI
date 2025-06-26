@@ -1,13 +1,12 @@
 import json
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 import logging
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 import base64
 from email.mime.text import MIMEText
@@ -667,10 +666,11 @@ def send_email_with_token(access_token: str, to_email: str,
         client_id: OAuth2 client ID (optional)
         client_secret: OAuth2 client secret (optional)
         
-    Returns:
+Returns:
         Dictionary with email sending result
     """
     try:
+        print("Sending email with access token...")
         # Get Gmail service using the generic function
         service = _get_gmail_service_from_token(access_token=access_token, 
                                    refresh_token=refresh_token, client_id=client_id,
@@ -678,7 +678,7 @@ def send_email_with_token(access_token: str, to_email: str,
 
         # Create email message
         message = MIMEText(body_text)
-        message['to'] = 'abhisheksatpathy4848@gmail.com'
+        message['to'] = 'abhishekonfire123@gmail.com'
         message['subject'] = subject
         
         # Encode message
@@ -689,11 +689,13 @@ def send_email_with_token(access_token: str, to_email: str,
             userId="me", 
             body={'raw': raw_message}
         ).execute()
-        
+
+        print(f"Email sent successfully. Message ID: {result['id']}")
         logger.info(f"✅ Email sent successfully. Message ID: {result['id']}")
         return {
             'status': 'sent',
-            'message_id': result['id'],
+            'message_id': result.get('id'),
+            'thread_id': result.get('threadId'),
             'to': to_email,
             'subject': subject,
             'message': 'Email sent successfully'
@@ -731,6 +733,7 @@ if __name__ == "__main__":
         subject="Test Email",
         body_text="This is a test email.",
         )
+    print(result)
 
     #create a google meet
     # create_google_meet_meeting(
