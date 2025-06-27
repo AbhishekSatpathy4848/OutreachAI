@@ -2,11 +2,11 @@ import os
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
 from collections import Counter
-from gemini_call import prompt_gemini 
+from prompt_llms import prompt_nova_lite 
 import json
 
 load_dotenv()
-YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY_2")
 YOUTUBE_API_SERVICE_NAME = "youtube"
 YOUTUBE_API_VERSION = "v3"
 
@@ -181,7 +181,7 @@ def generate_related_queries(main_query, num_queries=3):
     Main query: "{main_query}"
     """
     
-    response = prompt_gemini(prompt)
+    response = prompt_nova_lite(prompt)
     
     # Parse the response to extract individual queries
     queries = []

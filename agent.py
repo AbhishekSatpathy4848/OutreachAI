@@ -254,7 +254,7 @@ import json
 import asyncio
 
 from agentkit import make_crypto_actions
-from prompt_llms import prompt_gemini
+from prompt_llms import prompt_nova_lite
 from google_search_api import google_search
 from google_services import create_google_meet_meeting, get_upcoming_meetings, send_email_with_token
 from youtube_apis import search_for_channels
@@ -462,7 +462,7 @@ class AutonomousOutreachAgent:
         """
 
         try:
-            response = prompt_gemini(context)
+            response = prompt_nova_lite(context)
             parsed_response = to_json(response)
 
             self.state["conversation_history"].append({
@@ -589,7 +589,7 @@ class AutonomousOutreachAgent:
 
         try:
             # Get LLM response
-            llm_response = prompt_gemini(scoring_prompt)
+            llm_response = prompt_nova_lite(scoring_prompt)
             
             # Parse the LLM response
             scoring_result = to_json(llm_response)
@@ -778,7 +778,7 @@ class AutonomousOutreachAgent:
                     """
                     
                     # Get LLM response
-                    llm_response = prompt_gemini(outreach_prompt)
+                    llm_response = prompt_nova_lite(outreach_prompt)
                     
                     # Parse the LLM response
                     try:
