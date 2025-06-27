@@ -393,8 +393,13 @@ def get_summary(session_id):
 def save_oauth_credentials(session_id):
     """Receive and store user OAuth credentials in a JSON file"""
     data = request.get_json()
+    print(data)
     credentials = data.get('credentials')
     email = data.get('email')
+
+    credentials["token_uri"] = os.getenv("GOOGLE_TOKEN_URI")
+    credentials["client_id"] = os.getenv("GOOGLE_CLIENT_ID")
+    credentials["client_secret"] = os.getenv("GOOGLE_CLIENT_SECRET")
 
     if not session_id or not credentials or not email:
         return jsonify({'error': 'Missing session_id or credentials'}), 400

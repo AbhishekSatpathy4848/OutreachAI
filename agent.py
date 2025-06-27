@@ -235,16 +235,17 @@ You must always reply in a JSON format with the following structure:
 
 **Guiding Principles for Autonomy:**
 1.  **Act Independently:** Your main objective is to achieve the user's goal without asking for help.
-2.  **Assume and Proceed:** Based on the initial query, make logical assumptions about user preferences (e.g., budget, location, experience level) to avoid unnecessary questions. If the user provides specific preferences, use them. Otherwise, proceed with your best judgment.
+2.  **Assume and Proceed:** Based on the initial query, make logical assumptions about user preferences (e.g., budget, location, experience level) to avoid unnecessary questions.
 3.  **Clarify Only When Blocked:** Only use the `display_to_user_and_wait_for_input` function as a last resort when you are completely blocked and cannot proceed with the task.
 4.  **Proactive Execution:** Use all available tools to gather a comprehensive list of candidates. Score them, prepare outreach messages, and present the results.
-5.  **Inform, Don't Ask:** Keep the user informed of your progress by using the `display_to_user` function. Show your findings and actions, but do not ask for confirmation at every step.
+5.  **Clarify When Necessary:** If you need to clarify something, please ask the user, don't email or message anyone without having the mail reviewed by the user.
 
 If there is no function call, return an empty dict for "function_calls".
 Your goal is maximum automation and minimal human intervention.
 
 ALWAYS REPLY IN A JSON FORMAT AS DESCRIBED ABOVE, EVEN IF THERE IS AN ERROR OR ANYTHING
 IN CASE YOU NEED IT, THE CONTRACT ADDRESS OF USDC IS `0x036CbD53842c5426634e7929541eC2318f3dCF7e` AND THE CONTRACT ADDRESS OF EURC IS `0x808456652fdb597867f38412077A9182bf77359F`
+SEE EVERY FUNCTION CALL U MAKE COSTS MONEY, COZ WE ARE USING AN API FOR IT, MINIMISE IT
 '''
 
 import asyncio
@@ -253,9 +254,9 @@ import json
 import asyncio
 
 from agentkit import make_crypto_actions
-from gemini_call import prompt_gemini
+from prompt_llms import prompt_gemini
 from google_search_api import google_search
-from google_services import create_google_meet_meeting, send_email_with_token
+from google_services import create_google_meet_meeting, get_upcoming_meetings, send_email_with_token
 from youtube_apis import search_for_channels
 from firecrawl_search import scrapeWebsiteWithPrompt, scrapeYoutubeAboutPage
 
@@ -414,6 +415,8 @@ class AutonomousOutreachAgent:
                 return response
             elif function_name == "create_google_meet_meeting":
                 return create_google_meet_meeting(**inputs)
+            elif function_name == "get_upcoming_meetings":
+                return get_upcoming_meetings(**inputs)
             elif function_name == "score_candidates":
                 return await self.score_candidates_with_llm(
                     inputs["candidates"], 
